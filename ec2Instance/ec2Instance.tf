@@ -1,5 +1,5 @@
 variable "instance_name" {
-    type = list(string)
+    type = string
 }
 
 variable "ami" {
@@ -27,13 +27,7 @@ variable "user_data" {
   default = ""
 }
 
-variable "source_dest_check" {
-  type = bool
-  default = true
-}
-
 resource "aws_instance" "ec2" {
-  count = length(var.instance_name) 
   ami = var.ami
   instance_type = var.instance_type
   subnet_id = var.subnet_id
@@ -41,19 +35,18 @@ resource "aws_instance" "ec2" {
   security_groups = var.security_groups
   user_data = var.user_data
   tags = {
-    Name = var.instance_name[count.index]
+    Name = var.instance_name
   }
-  source_dest_check = var.source_dest_check
 }
 
 output instance_id {
-  value = aws_instance.ec2[0].id
+  value = aws_instance.ec2.id
 }
 
 output private_ip {
-  value = aws_instance.ec2[0].private_ip
+  value = aws_instance.ec2.private_ip
 }
 
 output "network_interface_id" {
-  value = aws_instance.ec2[0].primary_network_interface_id
+  value = aws_instance.ec2.primary_network_interface_id
 }

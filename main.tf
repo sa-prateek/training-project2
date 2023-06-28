@@ -32,58 +32,71 @@ module "public_subnet_az1" {
   route_table_name = "tf_public_subnet_route_table_az1"
 }
 
-# module "public_subnet_az2" {
-#   source = "./publicSubnet"
-#   vpc_id = module.vpc.vpc_id
-#   availability_zone = "ap-south-1b"
-#   cidr_block = "10.0.2.0/24"
-#   subnet_name = "tf_public_subnet_az2"
-#   igw_id = module.tf_igw.igw_id
-#   route_table_name = "tf_public_route_table_az2"
-# }
-
-# module "nat_security_group" {
-#   source = "./securityGroup"
-#   ingress = [22]
-#   cidr_block = "0.0.0.0/0"
-#   vpc_id = module.vpc.vpc_id
-#   security_group_name = "NAT-Sg"
-# }
-
-# module "nat_instance" {
-#   source = "./ec2Instance"
-#   instance_name = ["NATInstance"]
-#   ami = "ami-0cba71abc8c8312aa"
-#   instance_type ="t2.micro"
-#   key_name = "jenkinsAs"
-#   subnet_id = module.public_subnet_az1.subnet_id
-#   source_dest_check = false
-#   security_groups = [ module.nat_security_group.security_group_id ]
-# }
+module "public_subnet_az2" {
+  source = "./publicSubnet"
+  vpc_id = module.vpc.vpc_id
+  availability_zone = "ap-south-1b"
+  cidr_block = "10.0.2.0/24"
+  subnet_name = "tf_public_subnet_az2"
+  igw_id = module.tf_igw.igw_id
+  route_table_name = "tf_public_route_table_az2"
+}
 
 module "private_subnet_az1" {
-  # depends_on = [ module.nat_instance ]
   source = "./privateSubnet"
   vpc_id = module.vpc.vpc_id
   availability_zone = "ap-south-1a"
   cidr_block = "10.0.3.0/24"
   subnet_name = "tf_private_subnet_az1"
   route_table_name = "tf_private_subnet_route_table_az1"
-  # nat_id = module.nat_instance.network_interface_id
 }
 
-module "private_ec2_security_group" {
+module "private_subnet_az2" {
+  source = "./privateSubnet"
+  vpc_id = module.vpc.vpc_id
+  availability_zone = "ap-south-1b"
+  cidr_block = "10.0.4.0/24"
+  subnet_name = "tf_private_subnet_az2"
+  route_table_name = "tf_private_subnet_route_table_az2"
+}
+
+module "jump_server_security_group" {
+  source = "./securityGroup"
+  ingress = [22]
+  cidr_block = ["0.0.0.0/0"]
+  vpc_id = module.vpc.vpc_id
+  security_group_name = "Web Traffic"
+}
+
+module "jump_server" {
+  source = "./ec2Instance"
+  instance_name = "jumpServer"
+  ami = "ami-03b31136fc503b84a"
+  instance_type ="t2.micro"
+  key_name = "jenkinsAs"
+  subnet_id = module.public_subnet_az1.subnet_id
+  security_groups = [ module.jump_server_security_group.security_group_id ]
+}
+
+module "private_ec2_security_group_az1" {
   source = "./securityGroup"
   ingress = [22,80,3306]
-  cidr_block = "0.0.0.0/0"
+  cidr_block = [format("%s/32", module.jump_server.private_ip)] // Change other ports to security groups besides port 22
   vpc_id = module.vpc.vpc_id
-  security_group_name = "Internal-Traffic-SG"
+  security_group_name = "Internal-Traffic-SG1"
 }
 
-module "private_ec2_instance" {
-  # depends_on = [ module.nat_instance ]
+module "private_ec2_security_group_az2" {
+  source = "./securityGroup"
+  ingress = [22,80,3306] 
+  cidr_block = [format("%s/32", module.jump_server.private_ip)] // Change other ports to security groups besides port 22
+  vpc_id = module.vpc.vpc_id
+  security_group_name = "Internal-Traffic-SG2"
+}
+
+module "private_ec2_instance_az1" {
   source = "./ec2Instance"
-  instance_name = ["tfvm1"]
+  instance_name = "tfvm1"
   ami = "ami-0cde9c0bc19ae4a39"
   instance_type ="t2.micro"
   key_name = "jenkinsAs"
@@ -92,25 +105,21 @@ module "private_ec2_instance" {
   sudo systemctl start mariadb
   EOF
   subnet_id = module.private_subnet_az1.subnet_id
-  security_groups = [ module.private_ec2_security_group.security_group_id ]
-}
- 
-module "jump_server_security_group" {
-  source = "./securityGroup"
-  ingress = [22,80]
-  cidr_block = "0.0.0.0/0"
-  vpc_id = module.vpc.vpc_id
-  security_group_name = "Web Traffic"
+  security_groups = [ module.private_ec2_security_group_az1.security_group_id ]
 }
 
-module "jump_server" {
+module "private_ec2_instance_az2" {
   source = "./ec2Instance"
-  instance_name = ["jumpServer"]
-  ami = "ami-03b31136fc503b84a"
+  instance_name = "tfvm2"
+  ami = "ami-0cde9c0bc19ae4a39"
   instance_type ="t2.micro"
   key_name = "jenkinsAs"
-  subnet_id = module.public_subnet_az1.subnet_id
-  security_groups = [ module.jump_server_security_group.security_group_id ]
+  user_data = <<-EOF
+  #!/bin/bash
+  sudo systemctl start mariadb
+  EOF
+  subnet_id = module.private_subnet_az2.subnet_id
+  security_groups = [ module.private_ec2_security_group_az2.security_group_id ]
 }
 
 module "db_private_subnet_az1" {
@@ -128,49 +137,46 @@ module "db_private_subnet_az2" {
   availability_zone = "ap-south-1b"
   cidr_block = "10.0.6.0/24"
   subnet_name = "tf_db_private_subnet_az2"
-  route_table_name = "tf_db_private_subnet_route_table_az1"
+  route_table_name = "tf_db_private_subnet_route_table_az2"
 }
 
-/*
-module "lb_security_group" {
+module "db_security_group_az1" {
   source = "./securityGroup"
-  ingress = [80]
-  cidr_block =["0.0.0.0/0"]
+  ingress = [3306,3306]
+  security_groups = [module.private_ec2_security_group_az1.security_group_id, module.private_ec2_security_group_az2.security_group_id]
   vpc_id = module.vpc.vpc_id
+  security_group_name = "db-SG"
 }
 
-module "lb" {
-  source = "./loadBalancer"
-  security_groups = [ module.lb_security_group.security_group_id ]
-  load_balancer_type = "application"
-  lb_name = "tf-lb"
-  subnet_ids = [  module.public_subnet_az1.subnet_id ]
+module "db_instance" {
+  source = "./db"
+  username = var.db_username
+  password = var.db_password
+  name = "db-instance"
+  identifier = "db"
+  instance_class = "db.t3.micro"
+  engine = "mariadb"
+  engine_version = "10.5.18"
+  port = 3306
+  allocated_storage = 10
+  storage_type = "gp2"
+  db_subnet_group_name = "db_subnet_group"
+  db_subnet_ids = [module.db_private_subnet_az1.subnet_id, module.db_private_subnet_az2.subnet_id]
+  security_group_ids = [module.db_security_group_az1.security_group_id]
 }
-*/
 
-# module "db_instance" {
-#   source = "./db"
-#   username = var.db_username
-#   password = var.db_password
-#   name = "db-instance"
-#   identifier = "db"
-#   instance_class = "db.t3.micro"
-#   engine = "mariadb"
-#   engine_version = "10.5.18"
-#   port = 3306
-#   allocated_storage = 10
-#   storage_type = "gp2"
-#   db_subnet_ids = [db_private_subnet_az1.subnet_id, db_private_subnet_az2.subnet_id]
-#   security_group_ids = [module.private_ec2_security_group.security_group_id]
+# module "lb_security_group" {
+#   source = "./securityGroup"
+#   ingress = [80]
+#   cidr_block = ["0.0.0.0/0"]
+#   vpc_id = module.vpc.vpc_id
+#   security_group_name = "lb-SG"
 # }
 
-# resource "aws_db_instance" "db_instance" {
-#   allocated_storage    = 20
-#   engine               = "mariadb"
-#   engine_version       = "10.5"
-#   instance_class       = "db.t2.micro"
-#   name                 = "my-db-instance"
-#   username             = "admin"
-#   password             = "password"
-#   db_subnet_group_name = aws_db_subnet_group.db_subnet_group.name
+# module "lb" {
+#   source = "./loadBalancer"
+#   security_groups = [ module.lb_security_group.security_group_id ]
+#   load_balancer_type = "application"
+#   lb_name = "tf-lb"
+#   subnet_ids = [ module.public_subnet_az1.subnet_id, module.public_subnet_az2.subnet_id ]
 # }

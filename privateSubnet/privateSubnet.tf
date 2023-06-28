@@ -18,15 +18,10 @@ variable "route_table_name" {
     type = string
 }
 
-# variable "nat_id" {
-#   type = string
-# }
-
 module "route_table" {
   source = "./routetable"
   vpc_id = var.vpc_id
   route_table_name = var.route_table_name
-  # nat_id = var.nat_id
 }
 
 resource "aws_subnet" "private_subnet" {

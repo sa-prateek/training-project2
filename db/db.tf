@@ -48,10 +48,14 @@ variable "db_subnet_ids" {
   type = list(string)
 }
 
+variable "db_subnet_group_name" {
+  type = string
+}
+
 module "db_subnet_group" {
   source = "./dbSubnet"
   subnet_ids = var.db_subnet_ids
-  db_subnet_group_name = "db_subnet_group"
+  db_subnet_group_name = var.db_subnet_group_name
 }
 
 resource "aws_db_instance" "database" {
