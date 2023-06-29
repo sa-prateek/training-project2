@@ -14,5 +14,5 @@ resource "aws_vpc" "tfvpc" {
 }
 
 output "vpc_id" {
-    value = aws_vpc.tfvpc.id
+  value = aws_vpc.tfvpc.id
 }

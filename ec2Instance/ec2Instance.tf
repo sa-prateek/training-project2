@@ -1,49 +1,49 @@
 variable "instance_name" {
-    type = string
+  type = string
 }
 
 variable "ami" {
-    type = string
+  type = string
 }
 
 variable "instance_type" {
-    type = string
+  type = string
 }
 
 variable "subnet_id" {
-    type = string
+  type = string
 }
 
 variable "key_name" {
-    type = string
+  type = string
 }
 
 variable "security_groups" {
-    type = list(string)
+  type = list(string)
 }
 
 variable "user_data" {
-  type        = string
+  type    = string
   default = ""
 }
 
 resource "aws_instance" "ec2" {
-  ami = var.ami
-  instance_type = var.instance_type
-  subnet_id = var.subnet_id
-  key_name = var.key_name
+  ami             = var.ami
+  instance_type   = var.instance_type
+  subnet_id       = var.subnet_id
+  key_name        = var.key_name
   security_groups = var.security_groups
-  user_data = var.user_data
+  user_data       = var.user_data
   tags = {
     Name = var.instance_name
   }
 }
 
-output instance_id {
+output "instance_id" {
   value = aws_instance.ec2.id
 }
 
-output private_ip {
+output "private_ip" {
   value = aws_instance.ec2.private_ip
 }
 

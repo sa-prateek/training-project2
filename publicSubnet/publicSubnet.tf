@@ -1,31 +1,31 @@
 variable "vpc_id" {
-    type = string
+  type = string
 }
 
 variable "availability_zone" {
-    type = string
+  type = string
 }
 
 variable "subnet_name" {
-    type = string
+  type = string
 }
 
 variable "cidr_block" {
-    type = string
+  type = string
 }
 
 variable "igw_id" {
-    type = string
+  type = string
 }
 
 variable "route_table_name" {
-    type = string
+  type = string
 }
 
 module "route_table" {
-  source = "./routetable"
-  vpc_id = var.vpc_id
-  igw_id = var.igw_id
+  source           = "./routetable"
+  vpc_id           = var.vpc_id
+  igw_id           = var.igw_id
   route_table_name = var.route_table_name
 }
 
