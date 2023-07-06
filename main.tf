@@ -1,5 +1,5 @@
 # Variables
-#############################################@###############
+#############################################################
 
 variable "region" {
   type = string
@@ -278,7 +278,7 @@ variable "lb_routing_action" {
 }
 
 # Resources
-#############################################@###############
+#############################################################
 
 provider "aws" {
   region = var.region
@@ -350,16 +350,6 @@ module "jump_server_security_group" {
   security_group_name = var.jump_server_security_group_name
 }
 
-module "jump_server" {
-  source          = "./ec2Instance"
-  instance_name   = var.jump_server_instance_name
-  ami             = var.jump_server_ami
-  instance_type   = var.jump_server_instance_type
-  key_name        = var.jump_server_key_name
-  subnet_id       = module.public_subnet_az1.subnet_id
-  security_groups = [module.jump_server_security_group.security_group_id]
-}
-
 module "private_ec2_security_group_az1" {
   source              = "./securityGroup"
   ingress             = var.private_ec2_az1_ingress_ports
@@ -374,6 +364,16 @@ module "private_ec2_security_group_az2" {
   security_groups     = [module.jump_server_security_group.security_group_id, module.lb_security_group.security_group_id]
   vpc_id              = module.vpc.vpc_id
   security_group_name = var.private_ec2_az2_security_group_name
+}
+
+module "jump_server" {
+  source          = "./ec2Instance"
+  instance_name   = var.jump_server_instance_name
+  ami             = var.jump_server_ami
+  instance_type   = var.jump_server_instance_type
+  key_name        = var.jump_server_key_name
+  subnet_id       = module.public_subnet_az1.subnet_id
+  security_groups = [module.jump_server_security_group.security_group_id]
 }
 
 module "private_ec2_instance_az1" {
